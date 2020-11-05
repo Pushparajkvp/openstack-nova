@@ -3252,3 +3252,30 @@ class LibvirtConfigGuestVPMEM(LibvirtConfigGuestDevice):
                 for sub in c.getchildren():
                     if sub.tag == "size":
                         self.target_size = sub.text
+
+class LibvirtConfigGuestSound(LibvirtConfigGuestDevice):
+
+    def __init__(self, **kwargs):
+        super(LibvirtConfigGuestSound, self).__init__(root_name="sound",
+                                                      **kwargs)
+        self.model = "ich6"
+        self.codec_type = "micro"
+        #self.address_type = "pci"
+        #self.address_domain = "0x0000"
+        #self.address_bus = "0x00"
+        #self.address_slot = "0x04"
+        #self.address_function = "0x0"
+
+    def format_dom(self):
+        dev = super(LibvirtConfigGuestSound, self).format_dom()
+        dev.set("model", self.model)
+        drv_codec = etree.Element("codec")
+        drv_codec.set("type", self.codec_type)
+        #drv_address = etree.Element("address")
+        #drv_address.set("type", self.address_type)
+        #drv_address.set("domain", self.address_domain)
+        #drv_address.set("bus", self.address_bus)
+        #drv_address.set("slot", self.address_slot)
+        #drv_address.set("function", self.address_function)
+        dev.append(drv_codec)
+        return dev
