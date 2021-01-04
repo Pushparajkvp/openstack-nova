@@ -311,12 +311,13 @@ class NovaProxyRequestHandlerBase(object):
             target_sock.close()
             self.request.close()
 
-    def _recv_send(self, tsock):
+        def _recv_send(self, tsock):
         iw = [self.request, tsock]
+        ow = []
         self.request.setblocking(0)
-        
-        while True:
-            (ins, ows, exs) = select.select(iw, _, iw)
+        while 1:
+
+            (ins, ows, exs) = select.select(iw, ow, iw)
             if exs:
                 LOG.info("ERROR : " + str(self.request.getpeername()[1]))
                 break
