@@ -597,6 +597,22 @@ class LibvirtDriver(driver.ComputeDriver):
                                                   driver_cache)
             conf.driver_cache = cache_mode
 
+        # NOTE(acewit): If the [libvirt]disk_cachemodes is set as
+        # `block=writeback` or `block=writethrough` or `block=unsafe`,
+        # whose correponding Linux's IO semantic is not O_DIRECT in
+        # file nova.conf, then it will result in an attachment failure
+        # because of the libvirt bug
+        # (https://bugzilla.redhat.com/show_bug.cgi?id=1086704)
+        if ((getattr(conf, 'driver_io', None) == "native") and
+                conf.driver_cache not in [None, 'none', 'directsync']):
+            conf.driver_io = "threads"
+            LOG.warning("The guest disk driver io mode has fallen back "
+                        "from 'native' to 'threads' because the "
+                        "disk cache mode is set as %(cachemode)s, which does"
+                        "not use O_DIRECT. See the following bug report "
+                        "for more details: https://launchpad.net/bugs/1841363",
+                        {'cachemode': conf.driver_cache})
+
     def _do_quality_warnings(self):
         """Warn about potential configuration issues.
 
@@ -2620,6 +2636,10 @@ class LibvirtDriver(driver.ComputeDriver):
         # image with no backing file.
         libvirt_utils.extract_snapshot(disk_delta, 'qcow2',
                                        out_path, image_format)
+
+        # Remove the disk_delta file once the snapshot extracted, so that
+        # it doesn't hang around till the snapshot gets uploaded
+        fileutils.delete_if_exists(disk_delta)
 
     def _volume_snapshot_update_status(self, context, snapshot_id, status):
         """Send a snapshot status update to Cinder.

@@ -762,6 +762,7 @@ class ServersController(wsgi.Controller):
                 exception.InvalidBDMEphemeralSize,
                 exception.InvalidBDMFormat,
                 exception.InvalidBDMSwapSize,
+                exception.InvalidBDMDiskBus,
                 exception.VolumeTypeNotFound,
                 exception.AutoDiskConfigDisabledByImage,
                 exception.InstanceGroupNotFound,
@@ -1139,6 +1140,7 @@ class ServersController(wsgi.Controller):
                 exception.ImageNotActive,
                 exception.ImageUnacceptable,
                 exception.InvalidMetadata,
+                exception.InvalidVolume,
                 ) as error:
             raise exc.HTTPBadRequest(explanation=error.format_message())
         except INVALID_FLAVOR_IMAGE_EXCEPTIONS as error:

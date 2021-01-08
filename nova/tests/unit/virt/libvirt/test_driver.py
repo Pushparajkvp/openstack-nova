@@ -17727,6 +17727,51 @@ class LibvirtConnTestCase(test.NoDBTestCase,
         drvr._set_cache_mode(fake_conf)
         self.assertEqual('none', fake_conf.driver_cache)
 
+    def _make_fake_conf(self, cache=None):
+        if cache:
+            self.flags(disk_cachemodes=['block=' + cache], group='libvirt')
+        else:
+            self.flags(group='libvirt')
+        drvr = libvirt_driver.LibvirtDriver(fake.FakeVirtAPI(), True)
+        fake_conf = FakeConfigGuestDisk()
+        fake_conf.source_type = 'block'
+        fake_conf.driver_io = 'native'
+        drvr._set_cache_mode(fake_conf)
+        return fake_conf
+
+    def test_set_cache_mode_driver_io_writeback(self):
+        """Tests that when conf.driver_io is 'native' and driver_cache is
+        'writeback', then conf.driver_io is forced to 'threads'
+        """
+        fake_conf = self._make_fake_conf('writeback')
+        self.assertEqual('writeback', fake_conf.driver_cache)
+        self.assertEqual('threads', fake_conf.driver_io)
+
+    def test_set_cache_mode_driver_io_writethrough(self):
+        """Tests that when conf.driver_io is 'native' and driver_cache is
+        'writethrough', then conf.driver_io is forced to 'threads'
+        """
+        fake_conf = self._make_fake_conf('writethrough')
+        self.assertEqual('writethrough', fake_conf.driver_cache)
+        self.assertEqual('threads', fake_conf.driver_io)
+
+    def test_set_cache_mode_driver_io_unsafe(self):
+        """Tests that when conf.driver_io is 'native' and driver_cache is
+        'unsafe', then conf.driver_io is forced to 'threads'
+        """
+        fake_conf = self._make_fake_conf('unsafe')
+        self.assertEqual('unsafe', fake_conf.driver_cache)
+        self.assertEqual('threads', fake_conf.driver_io)
+
+    def test_without_set_cache_mode_driver_io(self):
+        """Tests that when conf.driver_io is 'native' and driver_cache is
+        not set(this is default settings), then conf.driver_io is kept as
+        'native'
+        """
+        fake_conf = self._make_fake_conf()
+        self.assertIsNone(fake_conf.driver_cache)
+        self.assertEqual('native', fake_conf.driver_io)
+
     def test_set_cache_mode_invalid_mode(self):
         self.flags(disk_cachemodes=['file=FAKE'], group='libvirt')
         drvr = libvirt_driver.LibvirtDriver(fake.FakeVirtAPI(), True)
@@ -19142,10 +19187,11 @@ class LibvirtConnTestCase(test.NoDBTestCase,
         disconnect_volume.assert_called_once_with(self.context,
                 mock.sentinel.new_connection_info, instance)
 
+    @mock.patch.object(fileutils, 'delete_if_exists')
     @mock.patch('nova.virt.libvirt.guest.BlockDevice.is_job_complete')
     @mock.patch('nova.privsep.path.chown')
     def _test_live_snapshot(
-            self, mock_chown, mock_is_job_complete,
+            self, mock_chown, mock_is_job_complete, mock_delete,
             can_quiesce=False, require_quiesce=False):
         drvr = libvirt_driver.LibvirtDriver(fake.FakeVirtAPI())
         mock_dom = mock.MagicMock()
@@ -19203,6 +19249,7 @@ class LibvirtConnTestCase(test.NoDBTestCase,
             mock_chown.assert_called_once_with(dltfile, uid=os.getuid())
             mock_snapshot.assert_called_once_with(dltfile, "qcow2",
                                                   dstfile, "qcow2")
+            mock_delete.assert_called_once_with(dltfile)
             mock_define.assert_called_once_with(xmldoc)
             mock_quiesce.assert_any_call(mock.ANY, self.test_instance,
                                          mock.ANY, True)
