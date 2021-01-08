@@ -5721,6 +5721,7 @@ class LibvirtDriver(driver.ComputeDriver):
             guest.add_device(pointer)
 
         self._guest_add_spice_channel(guest)
+        self._guest_add_spice_audio(guest)
 
         if self._guest_add_video_device(guest):
             self._add_video_driver(guest, image_meta, flavor)
@@ -5896,6 +5897,13 @@ class LibvirtDriver(driver.ComputeDriver):
             channel.target_name = "com.redhat.spice.0"
             guest.add_device(channel)
 
+    @staticmethod
+    def _guest_add_spice_audio(guest):
+        if (CONF.spice.enabled):
+            sound = vconfig.LibvirtConfigGuestSound()
+            sound.model = "ich6"
+            sound.codec_type = "micro"
+            guest.add_device(sound)
     @staticmethod
     def _guest_add_memory_balloon(guest):
         virt_type = guest.virt_type

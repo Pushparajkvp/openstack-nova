@@ -277,6 +277,76 @@ class NovaProxyRequestHandlerBase(object):
                           {'host': host, 'port': port})
             raise
 
+    def do_CONNECT(self):
+        token = self.path
+        i = token.find(':')
+        if i >= 0:
+            token = token[:i]
+        ctxt = context.get_admin_context()
+        connect_info = self._get_connect_info(ctxt, token)
+        if not connect_info:
+            raise Exception("Invalid Token")
+
+        host = connect_info.host
+        port = connect_info.port
+
+        # Connect to the target
+        target_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            try:
+                target_sock.connect((host, port))
+            except socket.error:
+                self.send_error(404, "Failed to connect to target")
+                raise
+
+            self.send_response(200)
+            self.end_headers()
+            try:
+                self._recv_send(target_sock)
+            except IOError as e:
+                # server closed?
+                if e.errno != errno.EPIPE:
+                    raise
+        finally:
+            target_sock.close()
+            self.request.close()
+
+        def _recv_send(self, tsock):
+        iw = [self.request, tsock]
+        ow = []
+        self.request.setblocking(0)
+        while True:
+
+            (ins, ows, exs) = select.select(iw, ow, iw)
+            if exs:
+                LOG.info("ERROR : " + str(self.request.getpeername()[1]))
+                break
+            if ins:
+                for i in ins:
+                    if i is tsock:
+                        out = self.request
+                        # LOG.info("tsock in %s", "".join(str(x) for x in i.getsockname()))
+                        # LOG.info("http out %s", "".join(str(x) for x in out.getsockname()))
+                    elif i is self.request:
+                        out = tsock
+                        # LOG.info("READING : " + str(self.connection.getpeername()[1]))
+                        # LOG.info("http in %s", "".join(str(x) for x in i.getsockname()))
+                        # LOG.info("tsock out %s", "".join(str(x) for x in out.getsockname()))
+                    else:
+                        # LOG.info("CONTINUED : " + str(self.request.getpeername()[1]))
+                        continue
+                    try:
+                        data = i.recv(8192)
+                    except BlockingIOError:
+                        # LOG.info("SKIPPED : " + str(os.getpid()))
+                        continue
+                    # LOG.info("RECEIVED FROM : " + str(self.request.getpeername()[1]) + " PID : " + str(os.getpid()))
+                    if data:
+                        out.send(data)
+                        # LOG.info("SENT : ")
+                    else:
+                        LOG.info("RETURNED : " + str(self.connection.getpeername()[1]))
+                        return
 
 class NovaProxyRequestHandler(NovaProxyRequestHandlerBase,
                               websockify.ProxyRequestHandler):
