@@ -20,6 +20,7 @@ Leverages websockify.py by Joel Martin
 
 import copy
 import socket
+import select
 import sys
 
 from oslo_log import log as logging
@@ -311,7 +312,7 @@ class NovaProxyRequestHandlerBase(object):
             target_sock.close()
             self.request.close()
 
-        def _recv_send(self, tsock):
+    def _recv_send(self, tsock):
         iw = [self.request, tsock]
         ow = []
         self.request.setblocking(0)
